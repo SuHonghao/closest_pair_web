@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>分治法求最近点对问题 - Web 可视化版</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Microsoft YaHei", Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #111827 45%, #0b1120 100%);
+      color: #e5e7eb;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+      margin-bottom: 18px;
+    }
+
+    .title h1 {
+      margin: 0 0 8px 0;
+      font-size: 30px;
+      letter-spacing: 1px;
+    }
+
+    .title p {
+      margin: 0;
+      color: #9ca3af;
+      font-size: 15px;
+    }
+
+    .badge {
+      padding: 10px 14px;
+      border: 1px solid rgba(34, 211, 238, 0.35);
+      border-radius: 999px;
+      background: rgba(8, 145, 178, 0.14);
+      color: #67e8f9;
+      white-space: nowrap;
+      font-size: 14px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .panel {
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.28);
+      border-radius: 22px;
+      padding: 18px;
+      backdrop-filter: blur(14px);
+    }
+
+    .panel h2 {
+      margin: 0 0 14px 0;
+      font-size: 18px;
+      color: #f8fafc;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: #cbd5e1;
+      font-size: 14px;
+    }
+
+    input[type="number"], input[type="range"] {
+      width: 100%;
+    }
+
+    input[type="number"] {
+      background: #020617;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 12px;
+      padding: 11px 12px;
+      color: #e5e7eb;
+      outline: none;
+      font-size: 14px;
+    }
+
+    input[type="number"]:focus {
+      border-color: #22d3ee;
+      box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 13px;
+      padding: 11px 10px;
+      background: #1e293b;
+      color: #e5e7eb;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      background: #334155;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #06b6d4, #2563eb);
+      color: white;
+      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
+    }
+
+    button.success {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: white;
+    }
+
+    button.warning {
+      background: linear-gradient(135deg, #f59e0b, #ea580c);
+      color: white;
+    }
+
+    button.full {
+      grid-column: 1 / -1;
+    }
+
+    .hint {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(30, 41, 59, 0.65);
+      color: #cbd5e1;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .dot.blue { background: #38bdf8; }
+    .dot.orange { background: #f59e0b; }
+    .dot.red { background: #ef4444; }
+    .line-gray {
+      width: 20px;
+      height: 0;
+      border-top: 2px dashed #94a3b8;
+      display: inline-block;
+    }
+
+    .visual-panel {
+      min-height: 720px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status {
+      color: #bfdbfe;
+      font-weight: 700;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      flex: none;
+      height: 560px;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .output, .explain {
+      min-height: 180px;
+      background: rgba(2, 6, 23, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 16px;
+      padding: 14px;
+      white-space: pre-wrap;
+      line-height: 1.58;
+      color: #dbeafe;
+      font-family: Consolas, "Microsoft YaHei", monospace;
+      font-size: 13px;
+      overflow: auto;
+    }
+
+    .explain {
+      color: #d1d5db;
+      font-family: "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    .small {
+      color: #94a3b8;
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .bottom-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="title">
+        <h1>分治法求最近点对问题</h1>
+        <p>Web 可视化版：随机点生成、蛮力法验证、分治法求解、候选带动画、性能对比</p>
+      </div>
+      <div class="badge">无需安装 Python GUI 库，浏览器直接运行</div>
+    </div>
+
+    <div class="layout">
+      <aside class="panel">
+        <h2>参数设置</h2>
+
+        <div class="field">
+          <label for="pointCount">点数 N</label>
+          <input id="pointCount" type="number" min="2" max="200000" value="120" />
+        </div>
+
+        <div class="field">
+          <label for="seed">随机种子</label>
+          <input id="seed" type="number" value="42" />
+        </div>
+
+        <div class="field">
+          <label for="speed">动画速度：<span id="speedText">320</span> ms/步</label>
+          <input id="speed" type="range" min="60" max="900" value="320" />
+        </div>
+
+        <div class="button-grid">
+          <button class="primary" id="btnGenerate">生成点集</button>
+          <button id="btnDivide">分治法求解</button>
+          <button id="btnBrute">蛮力法求解</button>
+          <button id="btnBenchmark">性能对比</button>
+          <button class="success full" id="btnAnimate">动画演示分治过程</button>
+          <button class="warning" id="btnStep">单步执行</button>
+          <button id="btnPause">暂停 / 继续</button>
+          <button class="full" id="btnClear">清空高亮</button>
+        </div>
+
+        <div class="hint">
+          建议演示：N 取 50～200，点击“动画演示分治过程”。<br />
+          性能对比：N 取 1000～5000 可同时运行蛮力法和分治法；N 较大时会自动跳过蛮力法。
+        </div>
+
+        <h2 style="margin-top: 18px;">图例</h2>
+        <div class="legend">
+          <div class="legend-item"><span class="dot blue"></span>随机点</div>
+          <div class="legend-item"><span class="dot orange"></span>候选带点</div>
+          <div class="legend-item"><span class="dot red"></span>最近点对</div>
+          <div class="legend-item"><span class="line-gray"></span>分割线</div>
+        </div>
+      </aside>
+
+      <main class="panel visual-panel">
+        <div class="status-row">
+          <div id="status" class="status">等待生成点集</div>
+          <div class="small">时间单位：ms；距离计算使用距离平方避免频繁开方</div>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="bottom-grid">
+          <div id="output" class="output"></div>
+          <div id="explain" class="explain"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    class Point {
+      constructor(x, y, idx) {
+        this.x = x;
+        this.y = y;
+        this.idx = idx;
+      }
+    }
+
+    class Result {
+      constructor(d2 = Infinity, p1 = null, p2 = null, count = 0) {
+        this.d2 = d2;
+        this.p1 = p1;
+        this.p2 = p2;
+        this.count = count;
+      }
+
+      get distance() {
+        return Math.sqrt(this.d2);
+      }
+    }
+
+    class RandomGenerator {
+      constructor(seed = 42) {
+        this.seed = seed >>> 0;
+      }
+
+      next() {
+        this.seed = (1664525 * this.seed + 1013904223) >>> 0;
+        return this.seed / 4294967296;
+      }
+    }
+
+    class PointGenerator {
+      constructor(maxCoord = 1000000) {
+        this.maxCoord = maxCoord;
+      }
+
+      generate(n, seed) {
+        const rng = new RandomGenerator(seed);
+        const points = [];
+        for (let i = 0; i < n; i++) {
+          points.push(new Point(rng.next() * this.maxCoord, rng.next() * this.maxCoord, i));
+        }
+        return points;
+      }
+    }
+
+    class DistanceCounter {
+      constructor() {
+        this.count = 0;
+      }
+
+      reset() {
+        this.count = 0;
+      }
+
+      dist2(a, b) {
+        this.count++;
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        return dx * dx + dy * dy;
+      }
+    }
+
+    class BruteForceSolver {
+      constructor() {
+        this.counter = new DistanceCounter();
+      }
+
+      solve(points) {
+        this.counter.reset();
+        let best = new Result();
+        for (let i = 0; i < points.length; i++) {
+          for (let j = i + 1; j < points.length; j++) {
+            const d2 = this.counter.dist2(points[i], points[j]);
+            if (d2 < best.d2) {
+              best = new Result(d2, points[i], points[j], this.counter.count);
+            }
+          }
+        }
+        best.count = this.counter.count;
+        return best;
+      }
+    }
+
+    class DivideConquerSolver {
+      constructor(recordSteps = false) {
+        this.recordSteps = recordSteps;
+        this.steps = [];
+        this.counter = new DistanceCounter();
+      }
+
+      solve(points) {
+        this.steps = [];
+        this.counter.reset();
+        if (points.length < 2) return [new Result(), []];
+
+        const px = [...points].sort((a, b) => a.x === b.x ? a.y - b.y : a.x - b.x);
+        const py = [...points].sort((a, b) => a.y === b.y ? a.x - b.x : a.y - b.y);
+        const [result] = this.divide(px, py, 0);
+        result.count = this.counter.count;
+        return [result, this.steps];
+      }
+
+      divide(px, py, depth) {
+        const n = px.length;
+        if (n <= 3) {
+          const result = this.solveSmall(px);
+          const ySorted = [...px].sort((a, b) => a.y === b.y ? a.x - b.x : a.y - b.y);
+          if (this.recordSteps && result.p1 && result.p2) {
+            this.record({ type: "brute", depth, points: [...px], pair: [result.p1, result.p2], distance: result.distance });
+          }
+          return [result, ySorted];
+        }
+
+        const mid = Math.floor(n / 2);
+        const midX = px[mid].x;
+        const leftPx = px.slice(0, mid);
+        const rightPx = px.slice(mid);
+        const leftIds = new Set(leftPx.map(p => p.idx));
+        const leftPy = [];
+        const rightPy = [];
+
+        for (const p of py) {
+          if (leftIds.has(p.idx)) leftPy.push(p);
+          else rightPy.push(p);
+        }
+
+        if (this.recordSteps) {
+          this.record({ type: "split", depth, midX, points: [...px] });
+        }
+
+        const [leftResult, leftY] = this.divide(leftPx, leftPy, depth + 1);
+        const [rightResult, rightY] = this.divide(rightPx, rightPy, depth + 1);
+        let best = leftResult.d2 <= rightResult.d2 ? leftResult : rightResult;
+
+        const mergedY = this.mergeByY(leftY, rightY);
+        const strip = mergedY.filter(p => (p.x - midX) * (p.x - midX) < best.d2);
+
+        if (this.recordSteps) {
+          this.record({ type: "strip", depth, midX, strip: [...strip], pair: best.p1 && best.p2 ? [best.p1, best.p2] : null, distance: best.distance });
+        }
+
+        best = this.scanStrip(strip, best, depth);
+        return [best, mergedY];
+      }
+
+      solveSmall(points) {
+        let best = new Result();
+        for (let i = 0; i < points.length; i++) {
+          for (let j = i + 1; j < points.length; j++) {
+            const d2 = this.counter.dist2(points[i], points[j]);
+            if (d2 < best.d2) {
+              best = new Result(d2, points[i], points[j], this.counter.count);
+            }
+          }
+        }
+        return best;
+      }
+
+      mergeByY(left, right) {
+        const merged = [];
+        let i = 0;
+        let j = 0;
+        while (i < left.length && j < right.length) {
+          if (left[i].y <= right[j].y) merged.push(left[i++]);
+          else merged.push(right[j++]);
+        }
+        return merged.concat(left.slice(i)).concat(right.slice(j));
+      }
+
+      scanStrip(strip, best, depth) {
+        for (let i = 0; i < strip.length; i++) {
+          const upper = Math.min(i + 8, strip.length);
+          for (let j = i + 1; j < upper; j++) {
+            const dy = strip[j].y - strip[i].y;
+            if (dy * dy >= best.d2) break;
+            const d2 = this.counter.dist2(strip[i], strip[j]);
+            if (d2 < best.d2) {
+              best = new Result(d2, strip[i], strip[j], this.counter.count);
+              if (this.recordSteps) {
+                this.record({ type: "best", depth, pair: [best.p1, best.p2], distance: best.distance });
+              }
+            }
+          }
+        }
+        return best;
+      }
+
+      record(step) {
+        this.steps.push(step);
+      }
+    }
+
+    class Visualizer {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext("2d");
+        this.margin = 54;
+        this.points = [];
+        this.highlightPair = null;
+        this.midX = null;
+        this.strip = null;
+        this.message = "";
+        window.addEventListener("resize", () => this.draw(this.points, this.highlightPair, this.midX, this.strip, this.message));
+      }
+
+      resizeCanvas() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const cssWidth = Math.max(600, rect.width);
+        const cssHeight = Math.max(420, rect.height);
+
+        // 只修改 canvas 的绘图缓冲区尺寸，不反向修改 CSS 尺寸。
+        // 否则在某些浏览器/布局下会出现“画布越画越大”的问题。
+        this.canvas.width = Math.floor(cssWidth * dpr);
+        this.canvas.height = Math.floor(cssHeight * dpr);
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        return { width: cssWidth, height: cssHeight };
+      }
+
+      bounds(points) {
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const p of points) {
+          minX = Math.min(minX, p.x);
+          maxX = Math.max(maxX, p.x);
+          minY = Math.min(minY, p.y);
+          maxY = Math.max(maxY, p.y);
+        }
+        if (minX === maxX) maxX += 1;
+        if (minY === maxY) maxY += 1;
+        return { minX, maxX, minY, maxY };
+      }
+
+      toCanvas(p, points, width, height) {
+        const b = this.bounds(points);
+        const x = this.margin + (p.x - b.minX) / (b.maxX - b.minX) * (width - 2 * this.margin);
+        const y = height - this.margin - (p.y - b.minY) / (b.maxY - b.minY) * (height - 2 * this.margin);
+        return { x, y };
+      }
+
+      xToCanvas(xValue, points, width) {
+        const b = this.bounds(points);
+        return this.margin + (xValue - b.minX) / (b.maxX - b.minX) * (width - 2 * this.margin);
+      }
+
+      draw(points, highlightPair = null, midX = null, strip = null, message = "") {
+        this.points = points;
+        this.highlightPair = highlightPair;
+        this.midX = midX;
+        this.strip = strip;
+        this.message = message;
+
+        const { width, height } = this.resizeCanvas();
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, width, height);
+
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(0, 0, width, height);
+
+        if (!points || points.length === 0) return;
+
+        this.drawGrid(width, height);
+        this.drawBorder(width, height);
+        this.drawMessage(message);
+
+        if (strip && strip.length) this.drawStrip(points, strip, width, height);
+        if (midX !== null && midX !== undefined) this.drawSplit(points, midX, width, height);
+        this.drawPoints(points, width, height);
+        if (highlightPair && highlightPair[0] && highlightPair[1]) this.drawPair(points, highlightPair, width, height);
+        this.drawAxis(width, height);
+      }
+
+      drawGrid(width, height) {
+        const ctx = this.ctx;
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 10; i++) {
+          const x = this.margin + i * (width - 2 * this.margin) / 9;
+          ctx.beginPath();
+          ctx.moveTo(x, this.margin);
+          ctx.lineTo(x, height - this.margin);
+          ctx.stroke();
+        }
+        for (let i = 0; i < 8; i++) {
+          const y = this.margin + i * (height - 2 * this.margin) / 7;
+          ctx.beginPath();
+          ctx.moveTo(this.margin, y);
+          ctx.lineTo(width - this.margin, y);
+          ctx.stroke();
+        }
+      }
+
+      drawBorder(width, height) {
+        const ctx = this.ctx;
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.margin, this.margin, width - 2 * this.margin, height - 2 * this.margin);
+      }
+
+      drawMessage(message) {
+        if (!message) return;
+        const ctx = this.ctx;
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 15px Microsoft YaHei";
+        ctx.fillText(message, this.margin, 30);
+      }
+
+      drawPoints(points, width, height) {
+        const ctx = this.ctx;
+        const r = points.length <= 300 ? 4 : points.length <= 1000 ? 3 : 2;
+        ctx.fillStyle = "#38bdf8";
+        for (const p of points) {
+          const { x, y } = this.toCanvas(p, points, width, height);
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      drawStrip(points, strip, width, height) {
+        const ctx = this.ctx;
+        for (const p of strip) {
+          const { x, y } = this.toCanvas(p, points, width, height);
+          ctx.beginPath();
+          ctx.fillStyle = "#f59e0b";
+          ctx.strokeStyle = "#92400e";
+          ctx.lineWidth = 1.2;
+          ctx.arc(x, y, 6.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+
+      drawSplit(points, midX, width, height) {
+        const ctx = this.ctx;
+        const x = this.xToCanvas(midX, points, width);
+        ctx.save();
+        ctx.setLineDash([7, 7]);
+        ctx.strokeStyle = "#64748b";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, this.margin);
+        ctx.lineTo(x, height - this.margin);
+        ctx.stroke();
+        ctx.restore();
+        ctx.fillStyle = "#334155";
+        ctx.font = "bold 13px Microsoft YaHei";
+        ctx.fillText("分割线 L", x + 8, this.margin + 18);
+      }
+
+      drawPair(points, pair, width, height) {
+        const ctx = this.ctx;
+        const a = this.toCanvas(pair[0], points, width, height);
+        const b = this.toCanvas(pair[1], points, width, height);
+        ctx.strokeStyle = "#ef4444";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        for (const q of [a, b]) {
+          ctx.beginPath();
+          ctx.strokeStyle = "#ef4444";
+          ctx.lineWidth = 3;
+          ctx.arc(q.x, q.y, 10, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.fillStyle = "#ef4444";
+          ctx.arc(q.x, q.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      drawAxis(width, height) {
+        const ctx = this.ctx;
+        ctx.fillStyle = "#475569";
+        ctx.font = "13px Microsoft YaHei";
+        ctx.fillText("x 坐标", width / 2 - 18, height - 18);
+        ctx.fillText("y", 18, height / 2);
+      }
+    }
+
+    class App {
+      constructor() {
+        this.pointInput = document.getElementById("pointCount");
+        this.seedInput = document.getElementById("seed");
+        this.speedInput = document.getElementById("speed");
+        this.speedText = document.getElementById("speedText");
+        this.status = document.getElementById("status");
+        this.output = document.getElementById("output");
+        this.explain = document.getElementById("explain");
+        this.canvas = document.getElementById("canvas");
+        this.visualizer = new Visualizer(this.canvas);
+        this.generator = new PointGenerator();
+
+        this.points = [];
+        this.result = null;
+        this.steps = [];
+        this.stepIndex = 0;
+        this.animating = false;
+        this.paused = false;
+        this.timer = null;
+
+        this.bindEvents();
+        this.generatePoints();
+      }
+
+      bindEvents() {
+        document.getElementById("btnGenerate").addEventListener("click", () => this.generatePoints());
+        document.getElementById("btnDivide").addEventListener("click", () => this.runDivide());
+        document.getElementById("btnBrute").addEventListener("click", () => this.runBrute());
+        document.getElementById("btnBenchmark").addEventListener("click", () => this.benchmark());
+        document.getElementById("btnAnimate").addEventListener("click", () => this.startAnimation());
+        document.getElementById("btnStep").addEventListener("click", () => this.nextStep());
+        document.getElementById("btnPause").addEventListener("click", () => this.togglePause());
+        document.getElementById("btnClear").addEventListener("click", () => this.visualizer.draw(this.points, null, null, null, "已清空高亮，仅显示随机点集"));
+        this.speedInput.addEventListener("input", () => this.speedText.textContent = this.speedInput.value);
+      }
+
+      getN() {
+        const n = Number(this.pointInput.value);
+        if (!Number.isInteger(n) || n < 2) throw new Error("点数 N 必须是大于等于 2 的整数。 ");
+        return n;
+      }
+
+      getSeed() {
+        return Number(this.seedInput.value) || 42;
+      }
+
+      generatePoints() {
+        try {
+          this.stopAnimation();
+          const n = this.getN();
+
+          // 每点一次“生成点集”都自动换一个随机种子，确保点集真的重新生成。
+          // 如果想复现实验，只需要手动把随机种子改回指定值再点击生成即可。
+          const seed = this.getSeed();
+          this.seedInput.value = seed + 1;
+
+          this.points = this.generator.generate(n, seed);
+          this.result = null;
+          this.steps = [];
+          this.stepIndex = 0;
+          this.status.textContent = `已生成 ${n} 个随机点，本次种子：${seed}`;
+          this.output.textContent = `点集生成完成
+点数 N：${n}
+本次随机种子：${seed}
+下一次随机种子：${seed + 1}
+
+建议：
+1. N <= 300 适合动画演示
+2. N <= 6000 适合蛮力法验证
+3. N 较大时建议只运行分治法`;
+          this.explain.textContent = "算法说明：最近点对问题是在平面点集中找到欧氏距离最短的两个点。蛮力法枚举全部点对，复杂度为 O(N²)；分治法按 x 坐标划分点集，在合并阶段只检查分割线附近的候选带，复杂度为 O(N log N)。";
+          this.visualizer.draw(this.points, null, null, null, `已生成 ${n} 个随机点，本次种子：${seed}`);
+        } catch (err) {
+          alert(err.message);
+        }
+      }
+
+      runBrute() {
+        if (this.points.length > 6000) {
+          alert("蛮力法为 O(N²)，N 太大会很慢。请将 N 调小到 6000 以内。 ");
+          return;
+        }
+        const solver = new BruteForceSolver();
+        const start = performance.now();
+        const result = solver.solve(this.points);
+        const elapsed = performance.now() - start;
+        this.result = result;
+        this.status.textContent = "蛮力法求解完成";
+        this.output.textContent = this.formatResult("蛮力法结果", result, elapsed);
+        this.explain.textContent = "蛮力法直接枚举所有不同点对，计算 N(N-1)/2 次距离。它实现简单，适合小规模数据下验证分治法结果是否正确，但当 N 很大时运行时间会快速增长。";
+        this.visualizer.draw(this.points, [result.p1, result.p2], null, null, `蛮力法完成：最短距离 = ${result.distance.toFixed(6)}`);
+      }
+
+      runDivide() {
+        const solver = new DivideConquerSolver(false);
+        const start = performance.now();
+        const [result] = solver.solve(this.points);
+        const elapsed = performance.now() - start;
+        this.result = result;
+        this.status.textContent = "分治法求解完成";
+        this.output.textContent = this.formatResult("分治法结果", result, elapsed);
+        this.explain.textContent = "分治法先按 x 坐标排序，将点集递归划分为左右两部分。合并阶段只考虑距离分割线小于当前最短距离 d 的点，即候选带。候选带按 y 坐标有序，每个点最多检查后继 7 个点，因此合并阶段可以保持线性效率。";
+        this.visualizer.draw(this.points, [result.p1, result.p2], null, null, `分治法完成：最短距离 = ${result.distance.toFixed(6)}`);
+      }
+
+      benchmark() {
+        const solver = new DivideConquerSolver(false);
+        const t1 = performance.now();
+        const [divideResult] = solver.solve(this.points);
+        const divideMs = performance.now() - t1;
+        const lines = [];
+        lines.push("【性能对比】");
+        lines.push(`点数 N：${this.points.length}`);
+        lines.push("");
+        lines.push(`${"算法".padEnd(10)}${"时间/ms".padStart(12)}${"最短距离".padStart(18)}${"距离计算次数".padStart(16)}`);
+        lines.push("-".repeat(62));
+        lines.push(`${"分治法".padEnd(10)}${divideMs.toFixed(3).padStart(12)}${divideResult.distance.toFixed(6).padStart(18)}${String(divideResult.count).padStart(16)}`);
+
+        if (this.points.length <= 6000) {
+          const brute = new BruteForceSolver();
+          const t2 = performance.now();
+          const bruteResult = brute.solve(this.points);
+          const bruteMs = performance.now() - t2;
+          const same = Math.abs(bruteResult.d2 - divideResult.d2) < 1e-7;
+          const speedup = bruteMs / divideMs;
+          lines.push(`${"蛮力法".padEnd(10)}${bruteMs.toFixed(3).padStart(12)}${bruteResult.distance.toFixed(6).padStart(18)}${String(bruteResult.count).padStart(16)}`);
+          lines.push("");
+          lines.push(`结果一致：${same ? "是" : "否"}`);
+          lines.push(`分治法相对蛮力法加速约：${speedup.toFixed(2)} 倍`);
+        } else {
+          const pairCount = this.points.length * (this.points.length - 1) / 2;
+          lines.push("");
+          lines.push("蛮力法未运行：N 较大，O(N²) 计算过慢。 ");
+          lines.push(`若运行蛮力法，需要比较点对数量：${Math.round(pairCount).toLocaleString()}`);
+        }
+
+        this.status.textContent = "性能对比完成";
+        this.output.textContent = lines.join("\n");
+        this.explain.textContent = "从理论复杂度看，蛮力法为 O(N²)，分治法为 O(N log N)。随着 N 增大，二者差距会迅速扩大。Web 版可以直接在浏览器中展示运行时间、最近点对和距离计算次数。";
+        this.visualizer.draw(this.points, [divideResult.p1, divideResult.p2], null, null, `性能对比完成：分治法耗时 ${divideMs.toFixed(3)} ms`);
+      }
+
+      startAnimation() {
+        if (this.points.length > 300) {
+          alert("动画演示建议 N <= 300，否则候选带和分割线会过于密集。 ");
+          return;
+        }
+        this.stopAnimation();
+        const solver = new DivideConquerSolver(true);
+        const [result, steps] = solver.solve(this.points);
+        this.result = result;
+        this.steps = steps;
+        this.stepIndex = 0;
+        this.animating = true;
+        this.paused = false;
+        this.status.textContent = "动画演示中";
+        this.output.textContent = `【动画演示】\n共记录步骤：${steps.length}\n\n展示内容：\n1. 递归划分点集\n2. 小规模子问题蛮力求解\n3. 合并阶段构造候选带\n4. 候选带中更新最近点对`;
+        this.explain.textContent = "动画说明：灰色虚线表示当前递归层的分割线；橙色点表示候选带中的点；红色线表示当前已知最近点对。";
+        this.animate();
+      }
+
+      animate() {
+        if (!this.animating || this.paused) return;
+        if (this.stepIndex >= this.steps.length) {
+          this.finishAnimation();
+          return;
+        }
+        this.drawNextStep();
+        this.timer = setTimeout(() => this.animate(), Number(this.speedInput.value));
+      }
+
+      nextStep() {
+        if (!this.steps.length) {
+          const solver = new DivideConquerSolver(true);
+          const [result, steps] = solver.solve(this.points);
+          this.result = result;
+          this.steps = steps;
+          this.stepIndex = 0;
+        }
+        this.animating = true;
+        this.paused = true;
+        this.drawNextStep();
+      }
+
+      togglePause() {
+        if (!this.animating) return;
+        this.paused = !this.paused;
+        this.status.textContent = this.paused ? "动画已暂停" : "动画继续播放";
+        if (!this.paused) this.animate();
+      }
+
+      stopAnimation() {
+        this.animating = false;
+        this.paused = false;
+        if (this.timer) clearTimeout(this.timer);
+      }
+
+      drawNextStep() {
+        if (this.stepIndex >= this.steps.length) {
+          this.finishAnimation();
+          return;
+        }
+        const step = this.steps[this.stepIndex++];
+        const prefix = `步骤 ${this.stepIndex}/${this.steps.length}`;
+        if (step.type === "split") {
+          this.visualizer.draw(this.points, null, step.midX, null, `${prefix}：递归划分，深度 ${step.depth}`);
+        } else if (step.type === "brute") {
+          this.visualizer.draw(this.points, step.pair, null, null, `${prefix}：小规模子问题使用蛮力法，深度 ${step.depth}`);
+        } else if (step.type === "strip") {
+          this.visualizer.draw(this.points, step.pair, step.midX, step.strip, `${prefix}：合并阶段候选带扫描，当前 d = ${step.distance.toFixed(6)}`);
+        } else if (step.type === "best") {
+          this.visualizer.draw(this.points, step.pair, null, null, `${prefix}：发现更近点对，更新 d = ${step.distance.toFixed(6)}`);
+        }
+      }
+
+      finishAnimation() {
+        this.stopAnimation();
+        if (!this.result) return;
+        this.status.textContent = "动画演示结束";
+        this.output.textContent = this.formatResult("动画演示最终结果", this.result, 0).replace("运行时间：0.000 ms\n", "");
+        this.explain.textContent = "结论：分治法通过递归划分缩小问题规模，并在合并阶段只扫描候选带中的少量点，从而避免枚举所有点对。";
+        this.visualizer.draw(this.points, [this.result.p1, this.result.p2], null, null, `动画结束：最终最短距离 = ${this.result.distance.toFixed(6)}`);
+      }
+
+      formatResult(title, result, elapsed) {
+        if (!result || !result.p1 || !result.p2) return `【${title}】\n没有找到有效点对。`;
+        return `【${title}】\n最短距离：${result.distance.toFixed(8)}\n最近点对：#${result.p1.idx} 与 #${result.p2.idx}\n点 1：(${result.p1.x.toFixed(2)}, ${result.p1.y.toFixed(2)})\n点 2：(${result.p2.x.toFixed(2)}, ${result.p2.y.toFixed(2)})\n距离计算次数：${result.count}\n运行时间：${elapsed.toFixed(3)} ms\n`;
+      }
+    }
+
+    new App();
+  </script>
+</body>
+</html>
